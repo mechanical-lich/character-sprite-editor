@@ -33,6 +33,13 @@ function ToolBar({ tool, setTool, onUndo, onRedo, canUndo, canRedo }) {
             <button class="tool-btn ${tool === TOOLS.EYEDROPPER ? 'active' : ''}"
                     onClick=${() => setTool(TOOLS.EYEDROPPER)} title="Eyedropper (I)">Pick</button>
             <span style="width:1px;height:20px;background:#0f3460;margin:0 4px"></span>
+            <button class="tool-btn ${tool === TOOLS.LINE ? 'active' : ''}"
+                    onClick=${() => setTool(TOOLS.LINE)} title="Line (L)">Line</button>
+            <button class="tool-btn ${tool === TOOLS.RECT ? 'active' : ''}"
+                    onClick=${() => setTool(TOOLS.RECT)} title="Rectangle (R)">Rect</button>
+            <button class="tool-btn ${tool === TOOLS.CIRCLE ? 'active' : ''}"
+                    onClick=${() => setTool(TOOLS.CIRCLE)} title="Circle (C)">Circle</button>
+            <span style="width:1px;height:20px;background:#0f3460;margin:0 4px"></span>
             <button class="tool-btn" onClick=${onUndo} disabled=${!canUndo} title="Undo (Ctrl+Z)">Undo</button>
             <button class="tool-btn" onClick=${onRedo} disabled=${!canRedo} title="Redo (Ctrl+Y)">Redo</button>
         </div>
@@ -111,6 +118,25 @@ function App() {
                 ...prev,
                 [activeLayer]: { ...layer, data: newData },
             };
+        });
+    }, [activeLayer, spriteW, spriteH]);
+
+    // Handle shape tool commit (receives array of [x,y] points)
+    const handleDrawShape = useCallback((points, shapeColor) => {
+        setLayers(prev => {
+            undoStack.current.push(cloneLayers(prev));
+            if (undoStack.current.length > 50) undoStack.current.shift();
+            redoStack.current = [];
+
+            const layer = prev[activeLayer];
+            const newData = new Uint8ClampedArray(layer.data);
+            const rgba = hexToRgba(shapeColor);
+            for (const [px, py] of points) {
+                if (px >= 0 && px < spriteW && py >= 0 && py < spriteH) {
+                    setPixel(newData, px, py, spriteW, rgba);
+                }
+            }
+            return { ...prev, [activeLayer]: { ...layer, data: newData } };
         });
     }, [activeLayer, spriteW, spriteH]);
 
@@ -200,6 +226,9 @@ function App() {
             if (e.key === 'e') setTool(TOOLS.ERASER);
             if (e.key === 'g') setTool(TOOLS.FILL);
             if (e.key === 'i') setTool(TOOLS.EYEDROPPER);
+            if (e.key === 'l') setTool(TOOLS.LINE);
+            if (e.key === 'r') setTool(TOOLS.RECT);
+            if (e.key === 'c') setTool(TOOLS.CIRCLE);
             if (e.key === 'h') setShowGrid(g => !g);
         };
         window.addEventListener('keydown', handler);
@@ -254,6 +283,7 @@ function App() {
                     color=${color}
                     setColor=${setColor}
                     onDraw=${handleDraw}
+                    onDrawShape=${handleDrawShape}
                     showGrid=${showGrid}
                 />
                 <${PreviewCanvas}

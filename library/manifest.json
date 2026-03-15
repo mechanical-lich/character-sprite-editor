@@ -4,19 +4,28 @@
     "body": {
       "label": "Body",
       "files": [
-        { "name": "Characters", "path": "bodies/characters.png" }
+        {
+          "name": "Characters",
+          "path": "bodies/characters.png"
+        }
       ]
     },
     "bottoms": {
       "label": "Bottoms",
       "files": [
-        { "name": "Pants", "path": "bottoms/pants.png" }
+        {
+          "name": "Pants",
+          "path": "bottoms/pants.png"
+        }
       ]
     },
     "tops": {
       "label": "Tops",
       "files": [
-        { "name": "Shirts", "path": "tops/shirts.png" }
+        {
+          "name": "Shirts",
+          "path": "tops/shirts.png"
+        }
       ]
     },
     "face": {
@@ -26,7 +35,10 @@
     "footwear": {
       "label": "Footwear",
       "files": [
-        { "name": "Shoes", "path": "footwear/shoes.png" }
+        {
+          "name": "Shoes",
+          "path": "footwear/shoes.png"
+        }
       ]
     },
     "hands": {
@@ -35,7 +47,12 @@
     },
     "head": {
       "label": "Head",
-      "files": []
+      "files": [
+        {
+          "name": "Hair",
+          "path": "head/hair.png"
+        }
+      ]
     }
   }
 }

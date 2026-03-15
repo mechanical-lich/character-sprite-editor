@@ -2,17 +2,27 @@ import { h } from 'https://esm.sh/preact@10.19.3';
 import { useRef, useEffect, useCallback } from 'https://esm.sh/preact@10.19.3/hooks';
 import htm from 'https://esm.sh/htm@3.1.1';
 
-import { LAYER_ORDER, TOOLS } from './constants.js';
-import { getPixel, rgbaToHex } from './utils.js';
+import { LAYER_ORDER, TOOLS, SHAPE_TOOLS } from './constants.js';
+import { getPixel, rgbaToHex, hexToRgba, rasterizeLine, rasterizeRect, rasterizeCircle } from './utils.js';
 
 const html = htm.bind(h);
 
-export function EditorCanvas({ layers, activeLayer, spriteW, spriteH, scale, tool, color, setColor, onDraw, showGrid }) {
+function getShapePoints(tool, x0, y0, x1, y1) {
+    if (tool === TOOLS.LINE) return rasterizeLine(x0, y0, x1, y1);
+    if (tool === TOOLS.RECT) return rasterizeRect(x0, y0, x1, y1);
+    if (tool === TOOLS.CIRCLE) return rasterizeCircle(x0, y0, x1, y1);
+    return [];
+}
+
+export function EditorCanvas({ layers, activeLayer, spriteW, spriteH, scale, tool, color, setColor, onDraw, onDrawShape, showGrid }) {
     const containerRef = useRef(null);
     const canvasRefs = useRef({});
     const gridRef = useRef(null);
+    const previewRef = useRef(null);
     const isDrawing = useRef(false);
     const lastPos = useRef(null);
+    const shapeStart = useRef(null);
+    const isShape = SHAPE_TOOLS.has(tool);
 
     const width = spriteW * scale;
     const height = spriteH * scale;
@@ -65,6 +75,14 @@ export function EditorCanvas({ layers, activeLayer, spriteW, spriteH, scale, too
         }
     }, [showGrid, width, height, spriteW, spriteH, scale]);
 
+    // Clear shape preview when tool changes away from shape
+    useEffect(() => {
+        if (!isShape && previewRef.current) {
+            const ctx = previewRef.current.getContext('2d');
+            ctx.clearRect(0, 0, width, height);
+        }
+    }, [isShape, width, height]);
+
     const getPixelPos = useCallback((e) => {
         const rect = containerRef.current.getBoundingClientRect();
         const x = Math.floor((e.clientX - rect.left) / scale);
@@ -75,6 +93,24 @@ export function EditorCanvas({ layers, activeLayer, spriteW, spriteH, scale, too
     const applyTool = useCallback((x, y) => {
         onDraw(x, y, tool, color);
     }, [tool, color, onDraw]);
+
+    const drawShapePreview = useCallback((x0, y0, x1, y1) => {
+        if (!previewRef.current) return;
+        const c = previewRef.current;
+        c.width = width;
+        c.height = height;
+        const ctx = c.getContext('2d');
+        ctx.clearRect(0, 0, width, height);
+        ctx.imageSmoothingEnabled = false;
+        const rgba = hexToRgba(color);
+        const points = getShapePoints(tool, x0, y0, x1, y1);
+        for (const [px, py] of points) {
+            if (px >= 0 && px < spriteW && py >= 0 && py < spriteH) {
+                ctx.fillStyle = `rgba(${rgba[0]},${rgba[1]},${rgba[2]},0.7)`;
+                ctx.fillRect(px * scale, py * scale, scale, scale);
+            }
+        }
+    }, [color, tool, scale, spriteW, spriteH, width, height]);
 
     const handlePointerDown = useCallback((e) => {
         e.preventDefault();
@@ -89,14 +125,27 @@ export function EditorCanvas({ layers, activeLayer, spriteW, spriteH, scale, too
             return;
         }
 
-        applyTool(x, y);
+        if (isShape) {
+            shapeStart.current = [x, y];
+            drawShapePreview(x, y, x, y);
+        } else {
+            applyTool(x, y);
+        }
         containerRef.current.setPointerCapture(e.pointerId);
-    }, [getPixelPos, applyTool, tool, layers, activeLayer, spriteW, setColor]);
+    }, [getPixelPos, applyTool, drawShapePreview, tool, isShape, layers, activeLayer, spriteW, setColor]);
 
     const handlePointerMove = useCallback((e) => {
         if (!isDrawing.current) return;
-        if (tool === TOOLS.EYEDROPPER || tool === TOOLS.FILL) return;
         const [x, y] = getPixelPos(e);
+
+        if (isShape) {
+            if (shapeStart.current) {
+                drawShapePreview(shapeStart.current[0], shapeStart.current[1], x, y);
+            }
+            return;
+        }
+
+        if (tool === TOOLS.EYEDROPPER || tool === TOOLS.FILL) return;
         if (lastPos.current && lastPos.current[0] === x && lastPos.current[1] === y) return;
 
         // Bresenham line from last to current for smooth drawing
@@ -115,15 +164,26 @@ export function EditorCanvas({ layers, activeLayer, spriteW, spriteH, scale, too
             }
         }
         lastPos.current = [x, y];
-    }, [getPixelPos, applyTool, tool]);
+    }, [getPixelPos, applyTool, drawShapePreview, tool, isShape]);
 
-    const handlePointerUp = useCallback(() => {
-        if (isDrawing.current) {
-            isDrawing.current = false;
+    const handlePointerUp = useCallback((e) => {
+        if (!isDrawing.current) return;
+        isDrawing.current = false;
+
+        if (isShape && shapeStart.current) {
+            const [x, y] = getPixelPos(e);
+            const points = getShapePoints(tool, shapeStart.current[0], shapeStart.current[1], x, y);
+            // Clear preview
+            if (previewRef.current) {
+                previewRef.current.getContext('2d').clearRect(0, 0, width, height);
+            }
+            onDrawShape(points, color);
+            shapeStart.current = null;
+        } else {
             lastPos.current = null;
             onDraw(null, null, null, null, true); // signal stroke end
         }
-    }, [onDraw]);
+    }, [onDraw, onDrawShape, getPixelPos, tool, isShape, color, width, height]);
 
     return html`
         <div class="canvas-container" ref=${containerRef}
@@ -137,6 +197,8 @@ export function EditorCanvas({ layers, activeLayer, spriteW, spriteH, scale, too
                     <canvas key=${id} ref=${el => { if (el) canvasRefs.current[id] = el; }}
                             style="pointer-events:none" />
                 `)}
+                <canvas ref=${previewRef} class="shape-preview-overlay"
+                        style="pointer-events:none;position:absolute;top:0;left:0;z-index:5" />
                 <canvas ref=${gridRef} class="grid-overlay"
                         style="pointer-events:none;display:${showGrid ? 'block' : 'none'}" />
             </div>

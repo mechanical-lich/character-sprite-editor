@@ -44,6 +44,86 @@ export function floodFill(data, x, y, w, h, fillColor) {
     }
 }
 
+// ─── Shape rasterization ─────────────────────────────────────────────
+
+export function rasterizeLine(x0, y0, x1, y1) {
+    const points = [];
+    const dx = Math.abs(x1 - x0), dy = Math.abs(y1 - y0);
+    const sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1;
+    let err = dx - dy;
+    let cx = x0, cy = y0;
+    while (true) {
+        points.push([cx, cy]);
+        if (cx === x1 && cy === y1) break;
+        const e2 = 2 * err;
+        if (e2 > -dy) { err -= dy; cx += sx; }
+        if (e2 < dx) { err += dx; cy += sy; }
+    }
+    return points;
+}
+
+export function rasterizeRect(x0, y0, x1, y1) {
+    const minX = Math.min(x0, x1), maxX = Math.max(x0, x1);
+    const minY = Math.min(y0, y1), maxY = Math.max(y0, y1);
+    const points = [];
+    for (let x = minX; x <= maxX; x++) {
+        points.push([x, minY], [x, maxY]);
+    }
+    for (let y = minY + 1; y < maxY; y++) {
+        points.push([minX, y], [maxX, y]);
+    }
+    return points;
+}
+
+export function rasterizeCircle(x0, y0, x1, y1) {
+    const cx = Math.round((x0 + x1) / 2);
+    const cy = Math.round((y0 + y1) / 2);
+    const rx = Math.abs(x1 - x0) / 2;
+    const ry = Math.abs(y1 - y0) / 2;
+    if (rx < 0.5 && ry < 0.5) return [[cx, cy]];
+    const points = [];
+    const seen = new Set();
+    const add = (px, py) => {
+        const key = `${px},${py}`;
+        if (!seen.has(key)) { seen.add(key); points.push([px, py]); }
+    };
+    // Midpoint ellipse algorithm
+    let x = 0, y = Math.round(ry);
+    let rx2 = rx * rx, ry2 = ry * ry;
+    let px = 0, py = 2 * rx2 * y;
+    // Region 1
+    let p = ry2 - rx2 * Math.round(ry) + 0.25 * rx2;
+    while (px < py) {
+        add(cx + x, cy + y); add(cx - x, cy + y);
+        add(cx + x, cy - y); add(cx - x, cy - y);
+        x++;
+        px += 2 * ry2;
+        if (p < 0) {
+            p += ry2 + px;
+        } else {
+            y--;
+            py -= 2 * rx2;
+            p += ry2 + px - py;
+        }
+    }
+    // Region 2
+    p = ry2 * (x + 0.5) * (x + 0.5) + rx2 * (y - 1) * (y - 1) - rx2 * ry2;
+    while (y >= 0) {
+        add(cx + x, cy + y); add(cx - x, cy + y);
+        add(cx + x, cy - y); add(cx - x, cy - y);
+        y--;
+        py -= 2 * rx2;
+        if (p > 0) {
+            p += rx2 - py;
+        } else {
+            x++;
+            px += 2 * ry2;
+            p += rx2 - py + px;
+        }
+    }
+    return points;
+}
+
 export function loadSpriteSheet(src) {
     return new Promise((resolve, reject) => {
         const img = new Image();

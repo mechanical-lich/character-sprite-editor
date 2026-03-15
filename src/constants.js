@@ -23,4 +23,9 @@ export const DEFAULT_PALETTE = [
     '#dfe6e9', '#b2bec3', '#2d3436', '#0984e3',
 ];
 
-export const TOOLS = { PENCIL: 'pencil', ERASER: 'eraser', FILL: 'fill', EYEDROPPER: 'eyedropper' };
+export const TOOLS = {
+    PENCIL: 'pencil', ERASER: 'eraser', FILL: 'fill', EYEDROPPER: 'eyedropper',
+    LINE: 'line', RECT: 'rect', CIRCLE: 'circle',
+};
+
+export const SHAPE_TOOLS = new Set([TOOLS.LINE, TOOLS.RECT, TOOLS.CIRCLE]);
