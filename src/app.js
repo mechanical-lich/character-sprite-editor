@@ -12,6 +12,14 @@ import { LibraryPanel } from './library.js';
 
 const html = htm.bind(h);
 
+function cloneLayers(layers) {
+    const copy = {};
+    for (const id of LAYER_ORDER) {
+        copy[id] = { data: new Uint8ClampedArray(layers[id].data), visible: layers[id].visible };
+    }
+    return copy;
+}
+
 // ─── ToolBar ─────────────────────────────────────────────────────────
 function ToolBar({ tool, setTool, onUndo, onRedo, canUndo, canRedo }) {
     return html`
@@ -55,29 +63,21 @@ function App() {
     const strokeBuffer = useRef(null);
 
     const pushUndo = useCallback(() => {
-        undoStack.current.push(JSON.parse(JSON.stringify(layers)));
+        undoStack.current.push(cloneLayers(layers));
         if (undoStack.current.length > 50) undoStack.current.shift();
         redoStack.current = [];
     }, [layers]);
 
     const undo = useCallback(() => {
         if (undoStack.current.length === 0) return;
-        redoStack.current.push(JSON.parse(JSON.stringify(layers)));
-        const prev = undoStack.current.pop();
-        for (const id of LAYER_ORDER) {
-            prev[id].data = new Uint8ClampedArray(prev[id].data);
-        }
-        setLayers(prev);
+        redoStack.current.push(cloneLayers(layers));
+        setLayers(undoStack.current.pop());
     }, [layers]);
 
     const redo = useCallback(() => {
         if (redoStack.current.length === 0) return;
-        undoStack.current.push(JSON.parse(JSON.stringify(layers)));
-        const next = redoStack.current.pop();
-        for (const id of LAYER_ORDER) {
-            next[id].data = new Uint8ClampedArray(next[id].data);
-        }
-        setLayers(next);
+        undoStack.current.push(cloneLayers(layers));
+        setLayers(redoStack.current.pop());
     }, [layers]);
 
     // Handle drawing
@@ -90,7 +90,7 @@ function App() {
         setLayers(prev => {
             if (!strokeBuffer.current) {
                 strokeBuffer.current = true;
-                undoStack.current.push(JSON.parse(JSON.stringify(prev)));
+                undoStack.current.push(cloneLayers(prev));
                 if (undoStack.current.length > 50) undoStack.current.shift();
                 redoStack.current = [];
             }
