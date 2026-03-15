@@ -1,0 +1,41 @@
+{
+  "spriteSize": 16,
+  "categories": {
+    "body": {
+      "label": "Body",
+      "files": [
+        { "name": "Characters", "path": "bodies/characters.png" }
+      ]
+    },
+    "bottoms": {
+      "label": "Bottoms",
+      "files": [
+        { "name": "Pants", "path": "bottoms/pants.png" }
+      ]
+    },
+    "tops": {
+      "label": "Tops",
+      "files": [
+        { "name": "Shirts", "path": "tops/shirts.png" }
+      ]
+    },
+    "face": {
+      "label": "Face",
+      "files": []
+    },
+    "footwear": {
+      "label": "Footwear",
+      "files": [
+        { "name": "Shoes", "path": "footwear/shoes.png" }
+      ]
+    },
+    "hands": {
+      "label": "Hands",
+      "files": []
+    },
+    "head": {
+      "label": "Head",
+      "files": []
+    }
+  }
+}
